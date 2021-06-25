@@ -3,8 +3,8 @@ require('dotenv').config();
 const ejs = require("ejs");
 const express = require("express");
 const mongoose = require("mongoose");
-const encrypt = require("mongoose-encryption");
 const _ = require("lodash");
+const md5 = require("md5");
 
 const app = express();
 
@@ -32,11 +32,6 @@ const UserSchema = new mongoose.Schema({
     password: String
 });
 
-// encryption should be done before creating a model
-
-
-//SchemaName.plugin(mongoose_encryption, {secret: secretName, encryptedFields: [an array of encryptedFields]})
-UserSchema.plugin(encrypt, {secret: process.env.SECRET, encryptedFields: ["password"]});
 
 //model
 const UserModel = new mongoose.model( "User", UserSchema); 
@@ -55,15 +50,12 @@ app.get("/register", (req, res)=>{
     res.render("register");
 });
 
-
-
 app.post("/register", (req, res)=>{
     const user = new UserModel({
         email: req.body.username,
-        password: req.body.password
+        password: md5(req.body.password)
     });
 
-    //console.log(user);
     user.save((err, result)=>{
         if (err) {
             res.render("error", {msg: "Oops, Something went wrong...."});
@@ -76,9 +68,7 @@ app.post("/register", (req, res)=>{
 app.post("/login", (req, res)=>{
 
     const username = req.body.username;
-    const password = req.body.password;
-
-    //console.log(username, password);
+    const password = md5(req.body.password);
 
     UserModel.findOne({email: username}, (err, foundUser)=>{
         
