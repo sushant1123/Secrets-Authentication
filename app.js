@@ -1,12 +1,13 @@
 //jshint esversion:6
+require('dotenv').config();
 const ejs = require("ejs");
 const express = require("express");
 const mongoose = require("mongoose");
 const encrypt = require("mongoose-encryption");
 const _ = require("lodash");
 
-
 const app = express();
+
 app.set("view engine", "ejs");
 
 app.use(express.urlencoded({extended: true}));
@@ -32,10 +33,10 @@ const UserSchema = new mongoose.Schema({
 });
 
 // encryption should be done before creating a model
-const secret = "ItIsMyLittleSecret.";
+
 
 //SchemaName.plugin(mongoose_encryption, {secret: secretName, encryptedFields: [an array of encryptedFields]})
-UserSchema.plugin(encrypt, {secret: secret, encryptedFields: ["password"]});
+UserSchema.plugin(encrypt, {secret: process.env.SECRET, encryptedFields: ["password"]});
 
 //model
 const UserModel = new mongoose.model( "User", UserSchema); 
