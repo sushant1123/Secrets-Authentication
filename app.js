@@ -2,6 +2,7 @@
 const ejs = require("ejs");
 const express = require("express");
 const mongoose = require("mongoose");
+const encrypt = require("mongoose-encryption");
 const _ = require("lodash");
 
 
@@ -30,6 +31,11 @@ const UserSchema = new mongoose.Schema({
     password: String
 });
 
+// encryption should be done before creating a model
+const secret = "ItIsMyLittleSecret.";
+
+//SchemaName.plugin(mongoose_encryption, {secret: secretName, encryptedFields: [an array of encryptedFields]})
+UserSchema.plugin(encrypt, {secret: secret, encryptedFields: ["password"]});
 
 //model
 const UserModel = new mongoose.model( "User", UserSchema); 
@@ -101,8 +107,6 @@ app.get("/logout", (req, res)=>{
 app.get("/error", (req, res)=>{
     res.render("error");
 });
-
-
 
 
 const port = process.env.PORT || 3000;
