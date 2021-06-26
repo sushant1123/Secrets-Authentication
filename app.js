@@ -4,9 +4,9 @@ const ejs = require("ejs");
 const express = require("express");
 const mongoose = require("mongoose");
 const _ = require("lodash");
-const bcrypt = require("bcrypt");
-const { result } = require('lodash');
-const saltRounds = 10;
+const session = require("express-session");
+const passport = require("passport");
+const passportLocalMongoose = require("passport-local-mongoose");
 
 const app = express();
 
@@ -15,6 +15,19 @@ app.set("view engine", "ejs");
 app.use(express.urlencoded({extended: true}));
 app.use(express.static("public"));
 
+//to setup the initial configuration 
+app.use(session({
+    secret: process.env.SECRET,
+    resave: false,
+    saveUninitialized: false
+}));
+
+//to initialize the passport package
+app.use(passport.initialize());
+
+//to deal with the session
+app.use(passport.session());
+
 
 //mongodb connection
 const URL = "mongodb://localhost:27017/";
@@ -22,9 +35,10 @@ const URL = "mongodb://localhost:27017/";
 mongoose.connect(URL+"userDB", {
     useNewUrlParser: true,
     useFindAndModify: true,
-    useUnifiedTopology: true,
-    useCreateIndex: true
+    useUnifiedTopology: true
 });
+
+mongoose.set("useCreateIndex", true);
 
 //creating schema
 
@@ -35,8 +49,18 @@ const UserSchema = new mongoose.Schema({
     password: String
 });
 
+//to setup a passport for mongoose local to hash and salt the pwd 
+UserSchema.plugin(passportLocalMongoose);
+
 //model
 const UserModel = new mongoose.model( "User", UserSchema); 
+
+//local login strategy
+passport.use(UserModel.createStrategy());
+
+//serialize and deserialize the user
+passport.serializeUser(UserModel.serializeUser());
+passport.deserializeUser(UserModel.deserializeUser());
 
 //routes
 app.get("/", (req, res)=>{
@@ -51,51 +75,58 @@ app.get("/register", (req, res)=>{
     res.render("register");
 });
 
+app.get("/secrets", (req, res)=>{
+    if(req.isAuthenticated()){
+        res.render("secrets");
+    }else{
+        res.redirect("/login");
+    }
+});
+
+
+//register post route 
 app.post("/register", (req, res)=>{
 
-    bcrypt.hash(req.body.password, saltRounds, (err, hash_value)=>{
-        const user = new UserModel({
-            email: req.body.username,
-            password: hash_value
-        });
-    
-        user.save((err)=>{
-            if (err) {
-                res.status(409).render("error", {msg: err});
-            }else{
-                res.render("secrets");
-            }
-        });
-    }); 
+    //passport local mongoose package
+    UserModel.register({username: req.body.username}, req.body.password, (err, user)=>{
+        if (err) {
+            console.log(err);
+            res.redirect("/register");
+        } else {
+            //                  type of auth          if successfull then in callback
+            passport.authenticate("local")(req, res, ()=>{
+                res.redirect("/secrets");
+            });
+        }
+    });
 });
 
+
+//login post route
 app.post("/login", (req, res)=>{
 
-    const username = req.body.username;
-    const password = req.body.password;
+    //create a user
+    const user = new UserModel({
+        username: req.body.username,
+        password: req.body.password
+    });
 
-    UserModel.findOne({email: username}, (err, foundUser)=>{
-        
-        if(err){
-            res.render("error", {msg: "Oops, Something went wrong...."});
-        }else{
-            if (foundUser) {
-                bcrypt.compare(password, foundUser.password, (err, result)=>{
-                    if (result === true) {
-                        res.render("secrets");
-                    } else {
-                        res.status(401).render("error", {msg: "Password is wrong"});
-                    }
-                });
-            }else{
-                res.render("error", {msg: "username not found..."});
-            }
+    //using login() method to establish a login session
+    req.login(user, (err)=>{
+        if (err) {
+            console.log(err);
+        } else {
+            passport.authenticate("local")(req, res, ()=>{
+                res.redirect("/secrets");
+            })        
         }
     })
+    
 });
 
-
+//logout from the session
 app.get("/logout", (req, res)=>{
+    req.logOut();
     res.redirect("/");
 });
 
