@@ -4,8 +4,8 @@ const ejs = require("ejs");
 const express = require("express");
 const mongoose = require("mongoose");
 const _ = require("lodash");
-const session = require("express-session");
 const passport = require("passport");
+const session = require("express-session");
 const passportLocalMongoose = require("passport-local-mongoose");
 
 const app = express();
@@ -22,10 +22,10 @@ app.use(session({
     saveUninitialized: false
 }));
 
-//to initialize the passport package
+// to initialize passport package
 app.use(passport.initialize());
 
-//to deal with the session
+// to initialize the passport session
 app.use(passport.session());
 
 
@@ -49,16 +49,16 @@ const UserSchema = new mongoose.Schema({
     password: String
 });
 
-//to setup a passport for mongoose local to hash and salt the pwd 
+//to setup passport for monggose local to hash and salt the password
 UserSchema.plugin(passportLocalMongoose);
 
 //model
 const UserModel = new mongoose.model( "User", UserSchema); 
 
-//local login strategy
+// to provide local login strategy to authenticate users
 passport.use(UserModel.createStrategy());
 
-//serialize and deserialize the user
+// to serialize and deserialize the user session
 passport.serializeUser(UserModel.serializeUser());
 passport.deserializeUser(UserModel.deserializeUser());
 
@@ -76,6 +76,8 @@ app.get("/register", (req, res)=>{
 });
 
 app.get("/secrets", (req, res)=>{
+    //if user is already authenticated (with the help of express-session, passport-local-mongoose)
+    // then render secrets
     if(req.isAuthenticated()){
         res.render("secrets");
     }else{
@@ -89,11 +91,11 @@ app.post("/register", (req, res)=>{
 
     //passport local mongoose package
     UserModel.register({username: req.body.username}, req.body.password, (err, user)=>{
-        if (err) {
+        if(err){
             console.log(err);
-            res.redirect("/register");
-        } else {
-            //                  type of auth          if successfull then in callback
+            res.status(409).redirect("/register");
+        }else{
+            //                type of strategy      callback if successfull
             passport.authenticate("local")(req, res, ()=>{
                 res.redirect("/secrets");
             });
@@ -121,12 +123,11 @@ app.post("/login", (req, res)=>{
             })        
         }
     })
-    
 });
 
 //logout from the session
 app.get("/logout", (req, res)=>{
-    req.logOut();
+    req.logout();
     res.redirect("/");
 });
 
