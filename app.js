@@ -30,7 +30,7 @@ app.use(passport.session());
 
 
 //mongodb connection
-const URL = "mongodb://localhost:27017/";
+const URL = process.env.MONGODB_URL;
 
 mongoose.connect(URL+"userDB", {
     useNewUrlParser: true,
