@@ -46,8 +46,9 @@ mongoose.set("useCreateIndex", true);
 const UserSchema = new mongoose.Schema({
     email: String,
     password: String,
-    googleId: String
-
+    googleId: String,
+    /* secretsArray: [{secret: String}] */
+    secretsArray: [String]
 });
 
 //to setup passport for monggose local to hash and salt the password
@@ -97,6 +98,32 @@ app.get("/register", (req, res)=>{
     res.render("register");
 });
 
+app.get("/submit", (req, res)=>{
+    if(req.isAuthenticated()){
+        res.render("submit");
+    }else{
+        res.redirect("/login");
+    }
+});
+
+app.post("/submit", (req, res)=>{
+    const enteredSecret = req.body.secret;
+    //console.log(enteredSecret);
+
+    User.findById(req.user._id, (err, foundUser)=>{
+        if(err){
+            console.log(err);
+        }else{
+            if(foundUser){
+                foundUser.secretsArray.push(enteredSecret);
+                foundUser.save(()=>{
+                    res.redirect("/secrets");
+                });
+            }
+        }
+    });
+});
+
 //google authentication
 app.get("/auth/google", 
     //use passport to authenticate a user using google strategy and we want user's profile
@@ -112,13 +139,17 @@ app.get("/auth/google/secrets",
 );
 
 app.get("/secrets", (req, res)=>{
-    //if user is already authenticated (with the help of express-session, passport-local-mongoose)
-    // then render secrets
-    if(req.isAuthenticated()){
-        res.render("secrets");
-    }else{
-        res.redirect("/login");
-    }
+   
+    //no need of user to be logged in to be able to see the secrets page.
+    User.find({"secretsArray": {$ne: []}}, (err, foundUsers)=>{
+        if(err){
+            console.log(err);
+        }else{
+            if(foundUsers){
+                res.render("secrets", {usersWithSecrets: foundUsers});
+            }
+        }
+    });
 });
 
 
